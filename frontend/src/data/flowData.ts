@@ -6,6 +6,8 @@ type Population = {
   fscSpread: number
   sscMean: number
   sscSpread: number
+  cd45Mean: number
+  cd45Spread: number
 }
 
 function randomNormal(
@@ -30,7 +32,9 @@ function addPopulation(
   data: FlowData,
   population: Population
 ): void {
+
   for (let i = 0; i < population.count; i++) {
+
     data.fsc.push(
       randomNormal(
         population.fscMean,
@@ -44,37 +48,57 @@ function addPopulation(
         population.sscSpread
       )
     )
+
+    data.cd45.push(
+      randomNormal(
+        population.cd45Mean,
+        population.cd45Spread
+      )
+    )
   }
+
 }
 
 export function createFlowData(): FlowData {
+
   const data: FlowData = {
     fsc: [],
-    ssc: []
+    ssc: [],
+    cd45: []
   }
 
   const populations: Population[] = [
+
     {
       count: 1800,
       fscMean: 240,
       fscSpread: 35,
       sscMean: 110,
-      sscSpread: 25
+      sscSpread: 25,
+      cd45Mean: 900,
+      cd45Spread: 40
     },
+
     {
       count: 900,
       fscMean: 420,
       fscSpread: 45,
       sscMean: 250,
-      sscSpread: 40
+      sscSpread: 40,
+      cd45Mean: 650,
+      cd45Spread: 55
     },
+
     {
       count: 2300,
       fscMean: 590,
       fscSpread: 65,
       sscMean: 430,
-      sscSpread: 65
+      sscSpread: 65,
+      cd45Mean: 450,
+      cd45Spread: 60
     }
+
   ]
 
   populations.forEach((population) => {
@@ -82,4 +106,5 @@ export function createFlowData(): FlowData {
   })
 
   return data
+
 }

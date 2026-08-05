@@ -1,6 +1,7 @@
 export type FlowData = {
   fsc: number[]
   ssc: number[]
+  cd45: number[]
 }
 
 export type SavedGate = {
@@ -14,6 +15,7 @@ export type SavedGate = {
 export type PlotlySelectionPoint = {
   pointNumber?: number
   pointIndex?: number
+  curveNumber?: number
   x: number
   y: number
 }

@@ -6,9 +6,10 @@ import {
 } from './components/ScatterPlot'
 
 import { GateEngine } from './core/GateEngine'
+import { PlotManager } from './core/PlotManager'
 import { createFlowData } from './data/flowData'
 
-function identifyPopulation(
+function identifyFscPopulation(
   averageFsc: number,
   averageSsc: number
 ): string {
@@ -27,6 +28,29 @@ function identifyPopulation(
   return 'Mixed or uncertain population'
 }
 
+function identifyCd45Population(
+  averageCd45: number,
+  averageSsc: number
+): string {
+  if (averageCd45 > 780 && averageSsc < 180) {
+    return 'Likely lymphocytes'
+  }
+
+  if (
+    averageCd45 > 540 &&
+    averageCd45 <= 780 &&
+    averageSsc < 350
+  ) {
+    return 'Likely monocytes'
+  }
+
+  if (averageCd45 <= 560 && averageSsc >= 300) {
+    return 'Likely granulocytes'
+  }
+
+  return 'Mixed or uncertain population'
+}
+
 export function App(): HTMLElement {
   const container = document.createElement('div')
 
@@ -35,7 +59,8 @@ export function App(): HTMLElement {
       <h1>Flow Cytometry Trainer</h1>
 
       <p>
-        Draw a lasso, name the gate, and save it.
+        Draw a lasso on either plot, name the gate,
+        and save it.
       </p>
 
       <div class="workspace">
@@ -97,32 +122,29 @@ export function App(): HTMLElement {
           ></p>
 
           <div class="plot-grid">
+            <div class="plot-panel">
+              <h3>FSC-A vs SSC-A</h3>
+              <div id="plot"></div>
+            </div>
 
-  <div class="plot-panel">
-
-    <h3>FSC-A vs SSC-A</h3>
-
-    <div id="plot"></div>
-
-  </div>
-
-  <div class="plot-panel">
-
-    <h3>CD45 vs SSC-A</h3>
-
-    <div id="cd45-plot"></div>
-
-  </div>
-
-</div>
+            <div class="plot-panel">
+              <h3>CD45 vs SSC-A</h3>
+              <div id="cd45-plot"></div>
+            </div>
+          </div>
         </main>
       </div>
     </div>
   `
 
   setTimeout(async () => {
-    const plotElement =
+    const fscPlotElement =
       container.querySelector<HTMLDivElement>('#plot')
+
+    const cd45PlotElement =
+      container.querySelector<HTMLDivElement>(
+        '#cd45-plot'
+      )
 
     const gateTreeElement =
       container.querySelector<HTMLDivElement>(
@@ -170,7 +192,8 @@ export function App(): HTMLElement {
       )
 
     if (
-      !plotElement ||
+      !fscPlotElement ||
+      !cd45PlotElement ||
       !gateTreeElement ||
       !totalEventsElement ||
       !eventCountElement ||
@@ -192,14 +215,33 @@ export function App(): HTMLElement {
     totalEventsElement.textContent =
       `${totalEvents.toLocaleString()} events`
 
-    const scatterPlot =
-      new ScatterPlot(plotElement, flowData)
+    const fscPlot = new ScatterPlot(
+      fscPlotElement,
+      flowData,
+      'fsc',
+      'ssc',
+      'FSC-A',
+      'SSC-A',
+      'FSC-A vs SSC-A'
+    )
 
-    const gateTree =
-      new GateTree(gateTreeElement)
+    const cd45Plot = new ScatterPlot(
+      cd45PlotElement,
+      flowData,
+      'cd45',
+      'ssc',
+      'CD45',
+      'SSC-A',
+      'CD45 vs SSC-A'
+    )
 
-    const gateEngine =
-      new GateEngine()
+    const plotManager = new PlotManager()
+
+    plotManager.register(fscPlot)
+    plotManager.register(cd45Plot)
+
+    const gateTree = new GateTree(gateTreeElement)
+    const gateEngine = new GateEngine()
 
     let currentSelection: SelectionResult | null = null
     let currentPopulation = ''
@@ -216,7 +258,7 @@ export function App(): HTMLElement {
       currentSelection = null
       currentPopulation = ''
 
-      await scatterPlot.clear()
+      await plotManager.clear()
 
       eventCountElement.textContent = '0'
       eventPercentElement.textContent = '0.0%'
@@ -228,19 +270,16 @@ export function App(): HTMLElement {
       messageElement.textContent = message
     }
 
-    await scatterPlot.render()
-    refreshGateTree()
-
-    scatterPlot.onSelection((selection) => {
+    function handleSelection(
+      selection: SelectionResult,
+      population: string
+    ): void {
       currentSelection = {
         ...selection,
         pointIndexes: [...selection.pointIndexes]
       }
 
-      currentPopulation = identifyPopulation(
-        selection.averageFsc,
-        selection.averageSsc
-      )
+      currentPopulation = population
 
       const percentage =
         (selection.pointIndexes.length / totalEvents) *
@@ -253,22 +292,47 @@ export function App(): HTMLElement {
         `${percentage.toFixed(1)}%`
 
       populationNameElement.textContent =
-        currentPopulation
+        population
 
       messageElement.textContent =
         'Selection ready to save.'
+
+      void plotManager.showGate(
+        selection.pointIndexes
+      )
+    }
+
+    await plotManager.renderAll()
+    refreshGateTree()
+
+    fscPlot.onSelection((selection) => {
+      const population = identifyFscPopulation(
+        selection.averageX,
+        selection.averageY
+      )
+
+      handleSelection(selection, population)
+    })
+
+    cd45Plot.onSelection((selection) => {
+      const population = identifyCd45Population(
+        selection.averageX,
+        selection.averageY
+      )
+
+      handleSelection(selection, population)
     })
 
     gateTree.onAction(async (action, gate) => {
       if (action === 'select') {
-        await scatterPlot.showGate(
+        await plotManager.showGate(
           gate.pointIndexes
         )
 
         currentSelection = {
           pointIndexes: [...gate.pointIndexes],
-          averageFsc: 0,
-          averageSsc: 0
+          averageX: 0,
+          averageY: 0
         }
 
         currentPopulation = gate.population
