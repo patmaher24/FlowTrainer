@@ -5,51 +5,21 @@ import {
   type SelectionResult
 } from './components/ScatterPlot'
 
+import {
+  identifyCd45Population,
+  identifyFscPopulation
+} from './core/PopulationClassifier'
+
+import { createUIBindings } from './ui/UIBindings'
+
+import {
+  CHANNELS,
+  type ChannelKey
+} from './core/ChannelRegistry'
+
 import { GateEngine } from './core/GateEngine'
 import { PlotManager } from './core/PlotManager'
 import { createFlowData } from './data/flowData'
-
-function identifyFscPopulation(
-  averageFsc: number,
-  averageSsc: number
-): string {
-  if (averageFsc < 330 && averageSsc < 180) {
-    return 'Likely lymphocytes'
-  }
-
-  if (averageFsc < 510 && averageSsc < 340) {
-    return 'Likely monocytes'
-  }
-
-  if (averageFsc >= 500 && averageSsc >= 300) {
-    return 'Likely granulocytes'
-  }
-
-  return 'Mixed or uncertain population'
-}
-
-function identifyCd45Population(
-  averageCd45: number,
-  averageSsc: number
-): string {
-  if (averageCd45 > 780 && averageSsc < 180) {
-    return 'Likely lymphocytes'
-  }
-
-  if (
-    averageCd45 > 540 &&
-    averageCd45 <= 780 &&
-    averageSsc < 350
-  ) {
-    return 'Likely monocytes'
-  }
-
-  if (averageCd45 <= 560 && averageSsc >= 300) {
-    return 'Likely granulocytes'
-  }
-
-  return 'Mixed or uncertain population'
-}
 
 export function App(): HTMLElement {
   const container = document.createElement('div')
@@ -121,6 +91,24 @@ export function App(): HTMLElement {
             aria-live="polite"
           ></p>
 
+          <div class="axis-controls">
+            <div class="axis-control">
+              <label for="x-axis">
+                X Axis
+              </label>
+
+              <select id="x-axis"></select>
+            </div>
+
+            <div class="axis-control">
+              <label for="y-axis">
+                Y Axis
+              </label>
+
+              <select id="y-axis"></select>
+            </div>
+          </div>
+
           <div class="plot-grid">
             <div class="plot-panel">
               <h3>FSC-A vs SSC-A</h3>
@@ -137,80 +125,52 @@ export function App(): HTMLElement {
     </div>
   `
 
-  setTimeout(async () => {
-    const fscPlotElement =
-      container.querySelector<HTMLDivElement>('#plot')
+setTimeout(async () => {
+  const ui = createUIBindings(container)
 
-    const cd45PlotElement =
-      container.querySelector<HTMLDivElement>(
-        '#cd45-plot'
+  const {
+    fscPlotElement,
+    cd45PlotElement,
+    xAxisSelect,
+    yAxisSelect,
+    gateTreeElement,
+    totalEventsElement,
+    eventCountElement,
+    eventPercentElement,
+    populationNameElement,
+    gateNameInput,
+    saveGateButton,
+    clearGateButton,
+    messageElement
+  } = ui
+
+  function populateAxisSelect(
+    select: HTMLSelectElement,
+    selectedChannel: ChannelKey
+  ): void {
+    select.innerHTML = CHANNELS
+      .map(
+        (channel) => `
+          <option
+            value="${channel.key}"
+            ${
+              channel.key === selectedChannel
+                ? 'selected'
+                : ''
+            }
+          >
+            ${channel.label}
+          </option>
+        `
       )
+      .join('')
+  }
 
-    const gateTreeElement =
-      container.querySelector<HTMLDivElement>(
-        '#gate-tree'
-      )
+  populateAxisSelect(xAxisSelect, 'fsc')
+  populateAxisSelect(yAxisSelect, 'ssc')
 
-    const totalEventsElement =
-      container.querySelector<HTMLElement>(
-        '#total-events'
-      )
-
-    const eventCountElement =
-      container.querySelector<HTMLElement>(
-        '#event-count'
-      )
-
-    const eventPercentElement =
-      container.querySelector<HTMLElement>(
-        '#event-percent'
-      )
-
-    const populationNameElement =
-      container.querySelector<HTMLElement>(
-        '#population-name'
-      )
-
-    const gateNameInput =
-      container.querySelector<HTMLInputElement>(
-        '#gate-name'
-      )
-
-    const saveGateButton =
-      container.querySelector<HTMLButtonElement>(
-        '#save-gate'
-      )
-
-    const clearGateButton =
-      container.querySelector<HTMLButtonElement>(
-        '#clear-gate'
-      )
-
-    const messageElement =
-      container.querySelector<HTMLElement>(
-        '#gate-message'
-      )
-
-    if (
-      !fscPlotElement ||
-      !cd45PlotElement ||
-      !gateTreeElement ||
-      !totalEventsElement ||
-      !eventCountElement ||
-      !eventPercentElement ||
-      !populationNameElement ||
-      !gateNameInput ||
-      !saveGateButton ||
-      !clearGateButton ||
-      !messageElement
-    ) {
-      throw new Error(
-        'A required application element is missing.'
-      )
-    }
-
-    const flowData = createFlowData()
-    const totalEvents = flowData.fsc.length
+  const flowData = createFlowData()
+  const totalEvents = flowData.fsc.length
 
     totalEventsElement.textContent =
       `${totalEvents.toLocaleString()} events`
