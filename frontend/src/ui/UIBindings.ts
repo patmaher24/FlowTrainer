@@ -12,13 +12,16 @@ export type UIBindings = {
   saveGateButton: HTMLButtonElement
   clearGateButton: HTMLButtonElement
   messageElement: HTMLElement
+  fcsFileInput: HTMLInputElement
 }
 
 export function createUIBindings(
   container: HTMLElement
 ): UIBindings {
   const fscPlotElement =
-    container.querySelector<HTMLDivElement>('#plot')
+    container.querySelector<HTMLDivElement>(
+      '#plot'
+    )
 
   const cd45PlotElement =
     container.querySelector<HTMLDivElement>(
@@ -80,6 +83,11 @@ export function createUIBindings(
       '#gate-message'
     )
 
+  const fcsFileInput =
+    container.querySelector<HTMLInputElement>(
+      '#fcs-file'
+    )
+
   if (
     !fscPlotElement ||
     !cd45PlotElement ||
@@ -93,7 +101,8 @@ export function createUIBindings(
     !gateNameInput ||
     !saveGateButton ||
     !clearGateButton ||
-    !messageElement
+    !messageElement ||
+    !fcsFileInput
   ) {
     throw new Error(
       'A required application element is missing.'
@@ -113,6 +122,7 @@ export function createUIBindings(
     gateNameInput,
     saveGateButton,
     clearGateButton,
-    messageElement
+    messageElement,
+    fcsFileInput
   }
 }
