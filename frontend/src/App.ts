@@ -420,6 +420,13 @@ const plotGrid =
       plotManager.register(
         cd45Plot
       )
+      type DynamicPlot = {
+  plot: ScatterPlot
+  xSelect: HTMLSelectElement
+  ySelect: HTMLSelectElement
+}
+
+const dynamicPlots: DynamicPlot[] = []
 let nextPlotNumber = 3
 
 addPlotButton?.addEventListener(
@@ -439,14 +446,53 @@ addPlotButton?.addEventListener(
     const plotElement = document.createElement('div')
     plotElement.id = `plot-${plotNumber}`
 
-    panel.append(heading, plotElement)
-    plotGrid.appendChild(panel)
+    // Create the X-axis dropdown.
+const xSelect = document.createElement('select')
+
+// Create the Y-axis dropdown.
+const ySelect = document.createElement('select')
+
+// Create a container for both dropdowns.
+const axisControls = document.createElement('div')
+axisControls.className = 'axis-controls'
+
+const xLabel = document.createElement('label')
+xLabel.textContent = 'X Axis'
+
+const yLabel = document.createElement('label')
+yLabel.textContent = 'Y Axis'
+
+xLabel.appendChild(xSelect)
+yLabel.appendChild(ySelect)
+
+axisControls.append(xLabel, yLabel)
+
+// Add everything to the new plot panel.
+panel.append(heading, axisControls, plotElement)
+plotGrid.appendChild(panel)
 
     // Choose channels from the currently loaded data.
     const channels = Object.keys(activeFlowData)
     const xChannel = channels[0]
     const yChannel = channels[1] ?? channels[0]
+for (const channel of channels) {
+  xSelect.add(
+    new Option(
+      getActiveChannelLabel(channel),
+      channel
+    )
+  )
 
+  ySelect.add(
+    new Option(
+      getActiveChannelLabel(channel),
+      channel
+    )
+  )
+}
+
+xSelect.value = xChannel
+ySelect.value = yChannel
     const newPlot = new ScatterPlot(
       plotElement,
       activeFlowData,
@@ -459,7 +505,38 @@ addPlotButton?.addEventListener(
 
     plotManager.register(newPlot)
     await newPlot.render()
+    dynamicPlots.push({
+  plot: newPlot,
+  xSelect,
+  ySelect
+})
+async function updatePlotChannels(): Promise<void> {
+  const selectedX = xSelect.value
+  const selectedY = ySelect.value
 
+  await newPlot.setChannels(
+    activeFlowData,
+    selectedX,
+    selectedY,
+    getActiveChannelLabel(selectedX),
+    getActiveChannelLabel(selectedY)
+  )
+
+  // Preserve the currently selected gate.
+  if (currentSelection) {
+    await newPlot.showGate(
+      currentSelection.pointIndexes
+    )
+  }
+}
+
+xSelect.addEventListener('change', () => {
+  void updatePlotChannels()
+})
+
+ySelect.addEventListener('change', () => {
+  void updatePlotChannels()
+})
     // Connect lasso gating to the existing system.
     newPlot.onSelection((selection) => {
       handleSelection(
@@ -1125,7 +1202,29 @@ addPlotButton?.addEventListener(
               referenceXChannel,
               referenceYChannel
             )
+for (const dynamicPlot of dynamicPlots) {
+  const { plot, xSelect, ySelect } = dynamicPlot
 
+  populateFCSAxisSelect(
+    xSelect,
+    channelNames,
+    firstChannel
+  )
+
+  populateFCSAxisSelect(
+    ySelect,
+    channelNames,
+    secondChannel
+  )
+
+  await plot.setChannels(
+    activeFlowData,
+    firstChannel,
+    secondChannel,
+    firstChannel,
+    secondChannel
+  )
+}
             console.log(
               'Loaded real FCS channels:',
               channelNames
