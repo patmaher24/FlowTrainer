@@ -186,7 +186,14 @@ export function App(): HTMLElement {
               accept=".fcs"
             />
           </div>
-
+<div class="plot-toolbar">
+  <button
+    id="add-plot"
+    type="button"
+  >
+    + Add Plot
+  </button>
+</div>
           <div class="plot-grid">
             <div class="plot-panel">
               <h3>Plot 1</h3>
@@ -397,7 +404,15 @@ export function App(): HTMLElement {
 
       const plotManager =
         new PlotManager()
+const addPlotButton =
+  container.querySelector<HTMLButtonElement>(
+    '#add-plot'
+  )
 
+const plotGrid =
+  container.querySelector<HTMLDivElement>(
+    '.plot-grid'
+  )
       plotManager.register(
         fscPlot
       )
@@ -405,7 +420,62 @@ export function App(): HTMLElement {
       plotManager.register(
         cd45Plot
       )
+let nextPlotNumber = 3
 
+addPlotButton?.addEventListener(
+  'click',
+  async () => {
+    if (!plotGrid) return
+
+    const plotNumber = nextPlotNumber++
+
+    // Create a new plot panel.
+    const panel = document.createElement('div')
+    panel.className = 'plot-panel'
+
+    const heading = document.createElement('h3')
+    heading.textContent = `Plot ${plotNumber}`
+
+    const plotElement = document.createElement('div')
+    plotElement.id = `plot-${plotNumber}`
+
+    panel.append(heading, plotElement)
+    plotGrid.appendChild(panel)
+
+    // Choose channels from the currently loaded data.
+    const channels = Object.keys(activeFlowData)
+    const xChannel = channels[0]
+    const yChannel = channels[1] ?? channels[0]
+
+    const newPlot = new ScatterPlot(
+      plotElement,
+      activeFlowData,
+      xChannel,
+      yChannel,
+      getActiveChannelLabel(xChannel),
+      getActiveChannelLabel(yChannel),
+      `Plot ${plotNumber}`
+    )
+
+    plotManager.register(newPlot)
+    await newPlot.render()
+
+    // Connect lasso gating to the existing system.
+    newPlot.onSelection((selection) => {
+      handleSelection(
+        selection,
+        'Selected population'
+      )
+    })
+
+    // Show any currently selected population.
+    if (currentSelection) {
+      await plotManager.showGate(
+        currentSelection.pointIndexes
+      )
+    }
+  }
+)
       const gateTree =
         new GateTree(
           gateTreeElement
